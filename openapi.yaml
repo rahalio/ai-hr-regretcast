@@ -1,0 +1,3068 @@
+openapi: 3.0.3
+info:
+  title: Regretcast
+  version: 0.1.0
+  description: >-
+    Workforce commitment register for scenario-based planning. Four competing 2030
+    worlds are held as versioned objects; every people commitment is scored for its
+    payoff in each, classified as a no-regrets move or a bet by computation rather
+    than assertion, priced for jurisdiction consultation and notice obligations, and
+    armed with monitored tripwires so a change of world becomes a scheduled decision.
+  x-product-slug: ai-hr-regretcast
+  x-source: ai-in-hr/workforce-of-the-future-the-competing-forces-shaping-2030-pwc/
+servers:
+  - url: https://api.example.com
+tags:
+  - name: Worlds
+    description: Scenario library, megatrend drivers, assumptions, and probability weightings
+  - name: Commitments
+    description: Registered workforce decision objects with owners, budget lines, and reversibility
+  - name: Payoff
+    description: Cross-world payoff scoring, regret profiles, and classification
+  - name: Portfolio
+    description: Portfolio summary, plan comparison, and scheduled board review
+  - name: Tripwires
+    description: Armed indicators, readings, responses, and world-drift assessment
+  - name: Skills
+    description: Skills-not-roles inventory and per-world capability gaps
+  - name: Jurisdictions
+    description: Consultation, notice, severance obligations and redeployment options
+  - name: PivotalTalent
+    description: Pivotal roles and per-world retention and burnout exposure
+  - name: Narrative
+    description: Aggregate workforce sentiment and the internal narrative record
+  - name: Governance
+    description: Confidentiality tiers, disclosure log, and immutable version history
+paths:
+  /v1/worlds:
+    get:
+      operationId: listWorldScenarios
+      summary: List the world scenarios in force
+      tags: [Worlds]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: World scenarios page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeWorldScenario"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /v1/worlds/{worldId}:
+    parameters:
+      - $ref: "#/components/parameters/WorldId"
+    get:
+      operationId: getWorldScenario
+      summary: Get a world scenario with axis positions and demanded-skills profile
+      tags: [Worlds]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: World scenario
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeWorldScenario"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/worlds/{worldId}/versions:
+    parameters:
+      - $ref: "#/components/parameters/WorldId"
+    post:
+      operationId: publishWorldScenarioVersion
+      summary: Publish an immutable new version of a world scenario definition
+      tags: [Worlds]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorldScenarioVersionCreate"
+      responses:
+        "201":
+          description: Version published
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeWorldScenario"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /v1/worlds/{worldId}/probability-weighting:
+    parameters:
+      - $ref: "#/components/parameters/WorldId"
+    put:
+      operationId: setWorldProbabilityWeighting
+      summary: Set the declared belief weighting for a world
+      description: >-
+        Weightings are recorded as declared beliefs with an author and rationale,
+        not as forecasts. Changing a weighting re-derives portfolio regret but never
+        rewrites a historic classification.
+      tags: [Worlds]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [weighting, rationale, declaredBy]
+              properties:
+                weighting:
+                  type: number
+                  format: float
+                  minimum: 0
+                  maximum: 1
+                rationale:
+                  type: string
+                declaredBy:
+                  type: string
+      responses:
+        "200":
+          description: Weighting recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeWorldScenario"
+  /v1/worlds/{worldId}/drivers:
+    parameters:
+      - $ref: "#/components/parameters/WorldId"
+    get:
+      operationId: listMegatrendDrivers
+      summary: List the observable megatrend drivers underpinning a world
+      tags: [Worlds]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Megatrend drivers page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeMegatrendDriver"
+  /v1/assumptions:
+    get:
+      operationId: listAssumptions
+      summary: List versioned planning assumptions with authorship
+      tags: [Worlds]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: worldId
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Assumptions page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeAssumption"
+  /v1/commitments:
+    get:
+      operationId: listCommitments
+      summary: List registered workforce commitments
+      tags: [Commitments]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: classification
+          in: query
+          schema:
+            $ref: "#/components/schemas/ClassificationClass"
+        - name: jurisdiction
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, scored, approved, executing, closed, withdrawn]
+      responses:
+        "200":
+          description: Commitments page, filtered by the caller's confidentiality tier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeCommitment"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: registerCommitment
+      summary: Register a workforce commitment as a decision object
+      tags: [Commitments]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommitmentCreate"
+      responses:
+        "201":
+          description: Commitment registered, pending payoff assessment in all worlds
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeCommitment"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /v1/commitments/{commitmentId}:
+    parameters:
+      - $ref: "#/components/parameters/CommitmentId"
+    get:
+      operationId: getCommitment
+      summary: Get a commitment with its payoff assessments and obligations
+      tags: [Commitments]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Commitment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeCommitment"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/commitments/{commitmentId}/approval:
+    parameters:
+      - $ref: "#/components/parameters/CommitmentId"
+    post:
+      operationId: approveCommitment
+      summary: Approve a commitment for release into the workforce and financial plan
+      description: >-
+        Rejected where the commitment has no payoff assessment in every world, where
+        a bet has no armed tripwire, or where success depends on a pivotal person
+        flagged as a flight or burnout risk without a funded mitigation.
+      tags: [Commitments]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approvedBy]
+              properties:
+                approvedBy:
+                  type: string
+                approvalForum:
+                  type: string
+                  enum: [executive_committee, board_people_committee, capital_approval, functional_delegation]
+                note:
+                  type: string
+      responses:
+        "200":
+          description: Commitment approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeCommitment"
+        "409":
+          description: Approval preconditions not met
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/commitments/{commitmentId}/jurisdiction-feasibility:
+    parameters:
+      - $ref: "#/components/parameters/CommitmentId"
+    post:
+      operationId: recordJurisdictionFeasibility
+      summary: Record or veto in-country feasibility inside the assumed lead time
+      tags: [Commitments]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JurisdictionFeasibilityCreate"
+      responses:
+        "201":
+          description: Feasibility position recorded against the commitment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeJurisdictionFeasibility"
+  /v1/commitments/{commitmentId}/reskilling-takeup:
+    parameters:
+      - $ref: "#/components/parameters/CommitmentId"
+    post:
+      operationId: reforecastReskillingTakeup
+      summary: Re-forecast a reskilling commitment against actual take-up
+      tags: [Commitments]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReskillingTakeupForecastCreate"
+      responses:
+        "201":
+          description: Take-up re-forecast recorded and variance computed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeReskillingTakeupForecast"
+  /v1/commitments/{commitmentId}/payoff-assessments:
+    parameters:
+      - $ref: "#/components/parameters/CommitmentId"
+    get:
+      operationId: listPayoffAssessments
+      summary: List the per-world payoff assessments for a commitment
+      tags: [Payoff]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Payoff assessments page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopePayoffAssessment"
+    post:
+      operationId: scoreCommitmentPayoff
+      summary: Score a commitment's payoff in one world with a named rationale
+      tags: [Payoff]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PayoffAssessmentCreate"
+      responses:
+        "201":
+          description: Payoff assessment recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopePayoffAssessment"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /v1/commitments/{commitmentId}/regret-profile:
+    parameters:
+      - $ref: "#/components/parameters/CommitmentId"
+    get:
+      operationId: getRegretProfile
+      summary: Get the computed regret profile across worlds
+      tags: [Payoff]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Regret profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeRegretProfile"
+        "409":
+          description: Payoff assessment missing for one or more worlds
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/commitments/{commitmentId}/classification:
+    parameters:
+      - $ref: "#/components/parameters/CommitmentId"
+    get:
+      operationId: getClassification
+      summary: Get the derived no-regrets or bet classification
+      tags: [Payoff]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Classification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeClassification"
+  /v1/commitments/{commitmentId}/classification/override:
+    parameters:
+      - $ref: "#/components/parameters/CommitmentId"
+    post:
+      operationId: overrideClassification
+      summary: Override a derived classification with recorded reasons
+      tags: [Payoff]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [overrideTo, rationale, overriddenBy]
+              properties:
+                overrideTo:
+                  $ref: "#/components/schemas/ClassificationClass"
+                rationale:
+                  type: string
+                overriddenBy:
+                  type: string
+      responses:
+        "200":
+          description: Classification overridden, with the derived value retained
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeClassification"
+  /v1/payoff-rubrics:
+    get:
+      operationId: listPayoffRubrics
+      summary: List versioned payoff scoring rubrics
+      tags: [Payoff]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Payoff rubrics page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopePayoffRubric"
+  /v1/portfolio/summary:
+    get:
+      operationId: getPortfolioSummary
+      summary: Get portfolio regret exposure and the no-regrets versus bet split
+      tags: [Portfolio]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: planId
+          in: query
+          schema:
+            type: string
+        - name: jurisdiction
+          in: query
+          schema:
+            type: string
+        - name: asOfDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Portfolio summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopePortfolioSummary"
+  /v1/portfolio/comparisons:
+    post:
+      operationId: comparePlans
+      summary: Compare two candidate plans on regret exposure rather than expected value alone
+      tags: [Portfolio]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [planAId, planBId]
+              properties:
+                planAId:
+                  type: string
+                planBId:
+                  type: string
+                criterion:
+                  type: string
+                  enum: [max_regret, expected_value, robustness_across_worlds, stranded_cost]
+      responses:
+        "200":
+          description: Plan comparison
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopePlanComparison"
+  /v1/portfolio/reviews:
+    get:
+      operationId: listPortfolioReviews
+      summary: List scheduled portfolio reviews
+      tags: [Portfolio]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Portfolio reviews page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopePortfolioReview"
+    post:
+      operationId: schedulePortfolioReview
+      summary: Schedule a portfolio review against the budget and capital calendar
+      tags: [Portfolio]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PortfolioReviewCreate"
+      responses:
+        "201":
+          description: Review scheduled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopePortfolioReview"
+  /v1/tripwires:
+    get:
+      operationId: listTripwires
+      summary: List armed tripwires and their status
+      tags: [Tripwires]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [armed, breached, response_executed, response_overdue, retired]
+        - name: commitmentId
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Tripwires page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeTripwire"
+    post:
+      operationId: armTripwire
+      summary: Arm a tripwire on a bet with a threshold, owner and pre-agreed response
+      tags: [Tripwires]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TripwireCreate"
+      responses:
+        "201":
+          description: Tripwire armed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeTripwire"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /v1/tripwires/{tripwireId}/readings:
+    parameters:
+      - $ref: "#/components/parameters/TripwireId"
+    get:
+      operationId: listTripwireReadings
+      summary: List indicator readings for a tripwire
+      tags: [Tripwires]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Tripwire readings page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeTripwireReading"
+    post:
+      operationId: recordTripwireReading
+      summary: Record an indicator reading from an external or internal feed
+      tags: [Tripwires]
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TripwireReadingCreate"
+      responses:
+        "201":
+          description: Reading recorded, threshold evaluated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeTripwireReading"
+  /v1/tripwires/{tripwireId}/response:
+    parameters:
+      - $ref: "#/components/parameters/TripwireId"
+    post:
+      operationId: executeTripwireResponse
+      summary: Record execution of the pre-agreed response after a breach
+      tags: [Tripwires]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action, executedBy]
+              properties:
+                action:
+                  type: string
+                  enum: [proceed_unchanged, pause, descope, reverse, accelerate, reclassify, escalate_to_board]
+                executedBy:
+                  type: string
+                note:
+                  type: string
+      responses:
+        "200":
+          description: Response recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeTripwire"
+        "409":
+          description: Tripwire is not in a breached state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/drift-assessments:
+    get:
+      operationId: listDriftAssessments
+      summary: List published world-drift assessments
+      tags: [Tripwires]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Drift assessments page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeDriftAssessment"
+    post:
+      operationId: publishDriftAssessment
+      summary: Publish an assessment of which world conditions are moving toward
+      tags: [Tripwires]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DriftAssessmentCreate"
+      responses:
+        "201":
+          description: Drift assessment published
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeDriftAssessment"
+  /v1/skills/inventory:
+    get:
+      operationId: listSkillInventory
+      summary: List the skills-not-roles inventory
+      tags: [Skills]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: function
+          in: query
+          schema:
+            type: string
+        - name: jurisdiction
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Skill inventory page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeSkillInventoryEntry"
+    post:
+      operationId: upsertSkillInventoryEntry
+      summary: Add or update an inventory entry, accreting skills beyond job titles
+      tags: [Skills]
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SkillInventoryEntryCreate"
+      responses:
+        "200":
+          description: Inventory entry upserted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeSkillInventoryEntry"
+  /v1/skills/demand-profiles:
+    get:
+      operationId: listSkillDemandProfiles
+      summary: List the skills each world demands
+      tags: [Skills]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: worldId
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Skill demand profiles page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeSkillDemandProfile"
+  /v1/skills/gaps:
+    get:
+      operationId: getCapabilityGapByWorld
+      summary: Get the capability gap expressed per world rather than as one number
+      tags: [Skills]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: function
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: horizonYear
+          in: query
+          schema:
+            type: integer
+            example: 2030
+      responses:
+        "200":
+          description: Capability gap per world
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeCapabilityGap"
+  /v1/jurisdictions:
+    get:
+      operationId: listJurisdictions
+      summary: List jurisdictions in scope with their labour regime profile
+      tags: [Jurisdictions]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Jurisdictions page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeJurisdiction"
+  /v1/jurisdictions/{jurisdictionCode}/obligations:
+    parameters:
+      - $ref: "#/components/parameters/JurisdictionCode"
+    get:
+      operationId: listJurisdictionObligations
+      summary: List consultation, notice, severance and redeployment obligations
+      tags: [Jurisdictions]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: triggerType
+          in: query
+          schema:
+            type: string
+            enum: [collective_redundancy, individual_redundancy, transfer_of_undertaking, material_change_to_terms, site_closure]
+      responses:
+        "200":
+          description: Jurisdiction obligations page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeJurisdictionObligation"
+  /v1/commitments/{commitmentId}/consultation-plan:
+    parameters:
+      - $ref: "#/components/parameters/CommitmentId"
+    post:
+      operationId: buildConsultationPlan
+      summary: Build the consultation and notice timetable inside the commitment lead time
+      tags: [Jurisdictions]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [jurisdictionCode, triggerType, affectedHeadcount]
+              properties:
+                jurisdictionCode:
+                  type: string
+                triggerType:
+                  type: string
+                  enum: [collective_redundancy, individual_redundancy, transfer_of_undertaking, material_change_to_terms, site_closure]
+                affectedHeadcount:
+                  type: integer
+                proposedStartDate:
+                  type: string
+                  format: date
+      responses:
+        "201":
+          description: Consultation plan with statutory clocks and cost
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeConsultationPlan"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /v1/commitments/{commitmentId}/consultation-pack:
+    parameters:
+      - $ref: "#/components/parameters/CommitmentId"
+    post:
+      operationId: releaseConsultationPack
+      summary: Release the information and consultation pack to representatives
+      description: >-
+        Released by a human holding the duty. Release includes the underlying
+        assumptions and lifts the confidentiality tier for the named recipients,
+        writing each recipient to the disclosure log.
+      tags: [Jurisdictions]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recipients, releasedBy]
+              properties:
+                recipients:
+                  type: array
+                  items:
+                    type: string
+                releasedBy:
+                  type: string
+                bodyType:
+                  type: string
+                  enum: [works_council, european_works_council, trade_union, employee_forum]
+      responses:
+        "202":
+          description: Pack released and disclosure logged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeConsultationPlan"
+  /v1/commitments/{commitmentId}/redeployment-options:
+    parameters:
+      - $ref: "#/components/parameters/CommitmentId"
+    get:
+      operationId: listRedeploymentOptions
+      summary: List internal redeployment options considered before external action
+      tags: [Jurisdictions]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Redeployment options page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeRedeploymentOption"
+    post:
+      operationId: recordRedeploymentOption
+      summary: Record a redeployment option and its consideration order
+      tags: [Jurisdictions]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedeploymentOptionCreate"
+      responses:
+        "201":
+          description: Redeployment option recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeRedeploymentOption"
+  /v1/pivotal-roles:
+    get:
+      operationId: listPivotalRoles
+      summary: List pivotal roles and the people holding them
+      tags: [PivotalTalent]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: function
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Pivotal roles page, restricted tier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopePivotalRole"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: designatePivotalRole
+      summary: Designate a role as pivotal with its value rationale
+      tags: [PivotalTalent]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PivotalRoleCreate"
+      responses:
+        "201":
+          description: Pivotal role designated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopePivotalRole"
+  /v1/pivotal-roles/{pivotalRoleId}/retention-exposure:
+    parameters:
+      - $ref: "#/components/parameters/PivotalRoleId"
+    get:
+      operationId: getRetentionExposure
+      summary: Get per-world retention and burnout exposure for a pivotal role
+      tags: [PivotalTalent]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Retention exposure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeRetentionExposure"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /v1/sentiment-readings:
+    get:
+      operationId: listSentimentReadings
+      summary: List aggregate workforce sentiment readings on automation and the future of work
+      tags: [Narrative]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: jurisdiction
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Sentiment readings page, aggregated above the minimum threshold
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeSentimentReading"
+    post:
+      operationId: publishSentimentReading
+      summary: Publish an aggregate sentiment reading with its lawful basis
+      tags: [Narrative]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SentimentReadingCreate"
+      responses:
+        "201":
+          description: Sentiment reading published
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeSentimentReading"
+        "422":
+          description: Population below the minimum aggregation threshold
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/narrative-communications:
+    get:
+      operationId: listNarrativeCommunications
+      summary: List what was communicated internally about the future of work, and when
+      tags: [Narrative]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Narrative communications page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeNarrativeCommunication"
+    post:
+      operationId: recordNarrativeCommunication
+      summary: Record a narrative communication against the register it describes
+      tags: [Narrative]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NarrativeCommunicationCreate"
+      responses:
+        "201":
+          description: Narrative communication recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeNarrativeCommunication"
+  /v1/governance/confidentiality-tiers:
+    get:
+      operationId: listConfidentialityTiers
+      summary: List confidentiality tiers and their access rules
+      tags: [Governance]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Confidentiality tiers page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeConfidentialityTier"
+  /v1/governance/disclosure-log:
+    get:
+      operationId: listDisclosureLog
+      summary: List who saw a restricted reduction scenario, and when
+      tags: [Governance]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: commitmentId
+          in: query
+          schema:
+            type: string
+        - name: personId
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Disclosure log page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeDisclosureLogEntry"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: recordDisclosure
+      summary: Record a disclosure of a restricted scenario to a named person
+      tags: [Governance]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DisclosureLogEntryCreate"
+      responses:
+        "201":
+          description: Disclosure recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeDisclosureLogEntry"
+  /v1/governance/versions:
+    get:
+      operationId: listVersionHistory
+      summary: List the immutable version history of worlds, assumptions and rubrics
+      tags: [Governance]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: artefactType
+          in: query
+          schema:
+            type: string
+            enum: [world_scenario, assumption, payoff_rubric, jurisdiction_obligation]
+      responses:
+        "200":
+          description: Version history page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeVersionRecord"
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+    WorldId:
+      name: worldId
+      in: path
+      required: true
+      schema:
+        type: string
+    CommitmentId:
+      name: commitmentId
+      in: path
+      required: true
+      schema:
+        type: string
+    TripwireId:
+      name: tripwireId
+      in: path
+      required: true
+      schema:
+        type: string
+    JurisdictionCode:
+      name: jurisdictionCode
+      in: path
+      required: true
+      schema:
+        type: string
+    PivotalRoleId:
+      name: pivotalRoleId
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    Unauthorized:
+      description: Missing or invalid credentials
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Forbidden:
+      description: Caller's confidentiality tier does not permit access to this scenario or record
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    UnprocessableEntity:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+  schemas:
+    ResponseMeta:
+      type: object
+      required: [requestId, timestamp]
+      properties:
+        requestId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          type: number
+          format: double
+        currency:
+          type: string
+          example: EUR
+    ClassificationClass:
+      type: string
+      enum: [no_regrets, bet, unclassified]
+    ReversibilityClass:
+      type: string
+      enum: [reversible, costly_to_reverse, irreversible]
+    CommitmentType:
+      type: string
+      enum: [hiring_plan, reskilling_programme, site_footprint, automation_initiative, contingent_mix_change, reward_redesign, operating_model_change, outsourcing_arrangement]
+    WorldScenario:
+      type: object
+      required: [id, code, name, version]
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+          enum: [red, blue, green, yellow]
+        name:
+          type: string
+          example: Innovation rules
+        version:
+          type: integer
+        collectivismIndividualismAxis:
+          type: string
+          enum: [collectivism, individualism]
+        integrationFragmentationAxis:
+          type: string
+          enum: [corporate_integration, business_fragmentation]
+        summary:
+          type: string
+        hrOperatingModelImplication:
+          type: string
+          description: What this world does to the people function, for example HR absorbed by Guilds or a board-level Head of People and Productivity
+        talentModel:
+          type: string
+        regulatoryPosture:
+          type: string
+        probabilityWeighting:
+          type: number
+          format: float
+        weightingRationale:
+          type: string
+        weightingDeclaredBy:
+          type: string
+        demandedSkillsProfileId:
+          type: string
+        publishedAt:
+          type: string
+          format: date-time
+    WorldScenarioVersionCreate:
+      type: object
+      required: [summary, hrOperatingModelImplication, authoredBy]
+      properties:
+        summary:
+          type: string
+        hrOperatingModelImplication:
+          type: string
+        talentModel:
+          type: string
+        regulatoryPosture:
+          type: string
+        demandedSkillsProfileId:
+          type: string
+        authoredBy:
+          type: string
+        changeRationale:
+          type: string
+    MegatrendDriver:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          enum: [technological_breakthroughs, demographic_shifts, rapid_urbanisation, shifts_in_global_economic_power, resource_scarcity_and_climate_change]
+        worldIds:
+          type: array
+          items:
+            type: string
+        observableIndicators:
+          type: array
+          items:
+            type: string
+        directionOfTravel:
+          type: string
+          enum: [reinforcing, weakening, ambiguous]
+        notes:
+          type: string
+    Assumption:
+      type: object
+      required: [id, statement, version, authoredBy]
+      properties:
+        id:
+          type: string
+        statement:
+          type: string
+        version:
+          type: integer
+        worldId:
+          type: string
+        category:
+          type: string
+          enum: [automation_exposure, labour_supply, regulation, wage_trajectory, take_up_behaviour, technology_maturity]
+        value:
+          type: string
+        sourceReference:
+          type: string
+        authoredBy:
+          type: string
+        supersededByAssumptionId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    PayoffRubric:
+      type: object
+      required: [id, version, scale]
+      properties:
+        id:
+          type: string
+        version:
+          type: integer
+        scale:
+          type: string
+          enum: [minus_three_to_plus_three, minus_five_to_plus_five, monetary]
+        dimensions:
+          type: array
+          items:
+            type: string
+            enum: [cost, capability_fit, speed, reputational, legal_exposure, employee_experience]
+        guidance:
+          type: string
+        authoredBy:
+          type: string
+        lockedAt:
+          type: string
+          format: date-time
+    Commitment:
+      type: object
+      required: [id, title, commitmentType, ownerName, status]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        commitmentType:
+          $ref: "#/components/schemas/CommitmentType"
+        description:
+          type: string
+        ownerName:
+          type: string
+          description: Named accountable owner, not a function
+        budgetLineReference:
+          type: string
+        committedAmount:
+          $ref: "#/components/schemas/Money"
+        decisionDate:
+          type: string
+          format: date
+        reversibility:
+          $ref: "#/components/schemas/ReversibilityClass"
+        affectedFunctions:
+          type: array
+          items:
+            type: string
+        jurisdictions:
+          type: array
+          items:
+            type: string
+        headcountImpact:
+          type: integer
+        impliesHeadcountReduction:
+          type: boolean
+        assumedLeadTimeDays:
+          type: integer
+        modelledLeadTimeDays:
+          type: integer
+          description: Lead time after jurisdiction consultation and notice obligations are priced in
+        dependsOnPivotalRoleIds:
+          type: array
+          items:
+            type: string
+        assumedReskillingTakeUpRate:
+          type: number
+          format: float
+        confidentialityTier:
+          type: string
+        classification:
+          $ref: "#/components/schemas/ClassificationClass"
+        status:
+          type: string
+          enum: [draft, scored, approved, executing, closed, withdrawn]
+        approvedBy:
+          type: string
+        planId:
+          type: string
+    CommitmentCreate:
+      type: object
+      required: [title, commitmentType, ownerName, decisionDate, reversibility]
+      properties:
+        title:
+          type: string
+        commitmentType:
+          $ref: "#/components/schemas/CommitmentType"
+        description:
+          type: string
+        ownerName:
+          type: string
+        budgetLineReference:
+          type: string
+        committedAmount:
+          $ref: "#/components/schemas/Money"
+        decisionDate:
+          type: string
+          format: date
+        reversibility:
+          $ref: "#/components/schemas/ReversibilityClass"
+        affectedFunctions:
+          type: array
+          items:
+            type: string
+        jurisdictions:
+          type: array
+          items:
+            type: string
+        headcountImpact:
+          type: integer
+        impliesHeadcountReduction:
+          type: boolean
+        assumedLeadTimeDays:
+          type: integer
+        assumedReskillingTakeUpRate:
+          type: number
+          format: float
+        confidentialityTier:
+          type: string
+        planId:
+          type: string
+    PayoffAssessment:
+      type: object
+      required: [id, commitmentId, worldId, score, scoredBy]
+      properties:
+        id:
+          type: string
+        commitmentId:
+          type: string
+        worldId:
+          type: string
+        rubricVersion:
+          type: integer
+        score:
+          type: number
+          format: float
+        dimensionScores:
+          type: object
+          additionalProperties:
+            type: number
+            format: float
+        rationale:
+          type: string
+        strandedCostIfWorldDiffers:
+          $ref: "#/components/schemas/Money"
+        scoredBy:
+          type: string
+          description: Named human judgement, never a model output
+        scoredAt:
+          type: string
+          format: date-time
+        worldVersionAtScoring:
+          type: integer
+    PayoffAssessmentCreate:
+      type: object
+      required: [worldId, score, rationale, scoredBy]
+      properties:
+        worldId:
+          type: string
+        score:
+          type: number
+          format: float
+        dimensionScores:
+          type: object
+          additionalProperties:
+            type: number
+            format: float
+        rationale:
+          type: string
+        strandedCostIfWorldDiffers:
+          $ref: "#/components/schemas/Money"
+        scoredBy:
+          type: string
+    RegretProfile:
+      type: object
+      required: [commitmentId, maxRegret]
+      properties:
+        commitmentId:
+          type: string
+        perWorldRegret:
+          type: array
+          items:
+            type: object
+            properties:
+              worldId:
+                type: string
+              worldCode:
+                type: string
+              payoffScore:
+                type: number
+                format: float
+              regret:
+                type: number
+                format: float
+              strandedCost:
+                $ref: "#/components/schemas/Money"
+        maxRegret:
+          type: number
+          format: float
+        minPayoffAcrossWorlds:
+          type: number
+          format: float
+        payoffSpread:
+          type: number
+          format: float
+        weightedExpectedPayoff:
+          type: number
+          format: float
+        robustAcrossAllWorlds:
+          type: boolean
+        computedAt:
+          type: string
+          format: date-time
+    Classification:
+      type: object
+      required: [commitmentId, derivedClass]
+      properties:
+        commitmentId:
+          type: string
+        derivedClass:
+          $ref: "#/components/schemas/ClassificationClass"
+        derivationBasis:
+          type: string
+          description: For example positive payoff in all four worlds, or negative in at least one
+        effectiveClass:
+          $ref: "#/components/schemas/ClassificationClass"
+        overridden:
+          type: boolean
+        overrideRationale:
+          type: string
+        overriddenBy:
+          type: string
+        requiresTripwire:
+          type: boolean
+        armedTripwireCount:
+          type: integer
+        changedSinceLastReview:
+          type: boolean
+        classifiedAt:
+          type: string
+          format: date-time
+    JurisdictionFeasibility:
+      type: object
+      required: [id, commitmentId, jurisdictionCode, position]
+      properties:
+        id:
+          type: string
+        commitmentId:
+          type: string
+        jurisdictionCode:
+          type: string
+        position:
+          type: string
+          enum: [feasible_as_assumed, feasible_with_longer_lead_time, not_feasible]
+        minimumFeasibleLeadTimeDays:
+          type: integer
+        reasons:
+          type: string
+        recordedBy:
+          type: string
+          description: Country HR director holding the local legal reality
+        recordedAt:
+          type: string
+          format: date-time
+    JurisdictionFeasibilityCreate:
+      type: object
+      required: [jurisdictionCode, position, reasons, recordedBy]
+      properties:
+        jurisdictionCode:
+          type: string
+        position:
+          type: string
+          enum: [feasible_as_assumed, feasible_with_longer_lead_time, not_feasible]
+        minimumFeasibleLeadTimeDays:
+          type: integer
+        reasons:
+          type: string
+        recordedBy:
+          type: string
+    ReskillingTakeupForecast:
+      type: object
+      required: [id, commitmentId, assumedRate, actualRate]
+      properties:
+        id:
+          type: string
+        commitmentId:
+          type: string
+        period:
+          type: string
+        assumedRate:
+          type: number
+          format: float
+        actualRate:
+          type: number
+          format: float
+        variance:
+          type: number
+          format: float
+        eligiblePopulation:
+          type: integer
+        enrolledPopulation:
+          type: integer
+        completedPopulation:
+          type: integer
+        reforecastRate:
+          type: number
+          format: float
+        note:
+          type: string
+    ReskillingTakeupForecastCreate:
+      type: object
+      required: [period, actualRate, eligiblePopulation]
+      properties:
+        period:
+          type: string
+        actualRate:
+          type: number
+          format: float
+        eligiblePopulation:
+          type: integer
+        enrolledPopulation:
+          type: integer
+        completedPopulation:
+          type: integer
+        reforecastRate:
+          type: number
+          format: float
+        note:
+          type: string
+    Tripwire:
+      type: object
+      required: [id, commitmentId, indicatorName, threshold, ownerName, status]
+      properties:
+        id:
+          type: string
+        commitmentId:
+          type: string
+        indicatorName:
+          type: string
+        indicatorSource:
+          type: string
+          enum: [external_labour_market, regulatory_tracker, macro_indicator, internal_pipeline, internal_sentiment, programme_milestone]
+        signalsWorldId:
+          type: string
+          description: The world this indicator moving would evidence
+        threshold:
+          type: number
+          format: float
+        thresholdDirection:
+          type: string
+          enum: [above, below, crosses]
+        unit:
+          type: string
+        ownerName:
+          type: string
+        reviewDate:
+          type: string
+          format: date
+        preAgreedResponse:
+          type: string
+          enum: [proceed_unchanged, pause, descope, reverse, accelerate, reclassify, escalate_to_board]
+        responseWindowDays:
+          type: integer
+        status:
+          type: string
+          enum: [armed, breached, response_executed, response_overdue, retired]
+        breachedAt:
+          type: string
+          format: date-time
+        responseExecutedAt:
+          type: string
+          format: date-time
+        responseExecutedBy:
+          type: string
+    TripwireCreate:
+      type: object
+      required: [commitmentId, indicatorName, threshold, thresholdDirection, ownerName, preAgreedResponse]
+      properties:
+        commitmentId:
+          type: string
+        indicatorName:
+          type: string
+        indicatorSource:
+          type: string
+          enum: [external_labour_market, regulatory_tracker, macro_indicator, internal_pipeline, internal_sentiment, programme_milestone]
+        signalsWorldId:
+          type: string
+        threshold:
+          type: number
+          format: float
+        thresholdDirection:
+          type: string
+          enum: [above, below, crosses]
+        unit:
+          type: string
+        ownerName:
+          type: string
+        reviewDate:
+          type: string
+          format: date
+        preAgreedResponse:
+          type: string
+          enum: [proceed_unchanged, pause, descope, reverse, accelerate, reclassify, escalate_to_board]
+        responseWindowDays:
+          type: integer
+    TripwireReading:
+      type: object
+      required: [id, tripwireId, value, observedAt]
+      properties:
+        id:
+          type: string
+        tripwireId:
+          type: string
+        value:
+          type: number
+          format: float
+        observedAt:
+          type: string
+          format: date-time
+        sourceReference:
+          type: string
+        breachedThreshold:
+          type: boolean
+        providerName:
+          type: string
+    TripwireReadingCreate:
+      type: object
+      required: [value, observedAt]
+      properties:
+        value:
+          type: number
+          format: float
+        observedAt:
+          type: string
+          format: date-time
+        sourceReference:
+          type: string
+        providerName:
+          type: string
+    DriftAssessment:
+      type: object
+      required: [id, assessedAt, leadingWorldId]
+      properties:
+        id:
+          type: string
+        assessedAt:
+          type: string
+          format: date-time
+        leadingWorldId:
+          type: string
+        perWorldEvidenceStrength:
+          type: array
+          items:
+            type: object
+            properties:
+              worldId:
+                type: string
+              worldCode:
+                type: string
+              evidenceStrength:
+                type: number
+                format: float
+              supportingIndicators:
+                type: array
+                items:
+                  type: string
+        breachedTripwireCount:
+          type: integer
+        commitmentsRequiringReclassification:
+          type: array
+          items:
+            type: string
+        narrative:
+          type: string
+        assessedBy:
+          type: string
+    DriftAssessmentCreate:
+      type: object
+      required: [leadingWorldId, narrative, assessedBy]
+      properties:
+        leadingWorldId:
+          type: string
+        narrative:
+          type: string
+        assessedBy:
+          type: string
+    PortfolioSummary:
+      type: object
+      properties:
+        planId:
+          type: string
+        asOfDate:
+          type: string
+          format: date
+        commitmentCount:
+          type: integer
+        scoredInAllWorldsCount:
+          type: integer
+        noRegretsCommittedSpend:
+          $ref: "#/components/schemas/Money"
+        betCommittedSpend:
+          $ref: "#/components/schemas/Money"
+        noRegretsHeadcountImpact:
+          type: integer
+        betHeadcountImpact:
+          type: integer
+        portfolioMaxRegret:
+          type: number
+          format: float
+        totalStrandedCostExposure:
+          $ref: "#/components/schemas/Money"
+        betsWithArmedTripwireShare:
+          type: number
+          format: float
+        overdueTripwireResponses:
+          type: integer
+        irreversibleBetCount:
+          type: integer
+    PlanComparison:
+      type: object
+      properties:
+        planAId:
+          type: string
+        planBId:
+          type: string
+        criterion:
+          type: string
+        planAMaxRegret:
+          type: number
+          format: float
+        planBMaxRegret:
+          type: number
+          format: float
+        planAWeightedExpectedPayoff:
+          type: number
+          format: float
+        planBWeightedExpectedPayoff:
+          type: number
+          format: float
+        planARobustAcrossAllWorlds:
+          type: boolean
+        planBRobustAcrossAllWorlds:
+          type: boolean
+        preferredUnderCriterion:
+          type: string
+          enum: [plan_a, plan_b, indistinguishable]
+        commentary:
+          type: string
+    PortfolioReview:
+      type: object
+      required: [id, scheduledFor, forum]
+      properties:
+        id:
+          type: string
+        scheduledFor:
+          type: string
+          format: date
+        forum:
+          type: string
+          enum: [executive_committee, board_people_committee, capital_approval]
+        alignedToBudgetMilestone:
+          type: string
+        status:
+          type: string
+          enum: [scheduled, pack_issued, held, cancelled]
+        summarySnapshot:
+          $ref: "#/components/schemas/PortfolioSummary"
+        driftAssessmentId:
+          type: string
+        reclassifiedCommitmentIds:
+          type: array
+          items:
+            type: string
+        sentimentReadingIds:
+          type: array
+          items:
+            type: string
+        heldAt:
+          type: string
+          format: date-time
+    PortfolioReviewCreate:
+      type: object
+      required: [scheduledFor, forum]
+      properties:
+        scheduledFor:
+          type: string
+          format: date
+        forum:
+          type: string
+          enum: [executive_committee, board_people_committee, capital_approval]
+        alignedToBudgetMilestone:
+          type: string
+        planId:
+          type: string
+    SkillInventoryEntry:
+      type: object
+      required: [id, skillCode, headcountHolding]
+      properties:
+        id:
+          type: string
+        skillCode:
+          type: string
+        skillName:
+          type: string
+        skillFamily:
+          type: string
+          enum: [adaptability, problem_solving, collaboration, emotional_intelligence, creativity_and_innovation, leadership, digital, stem, entrepreneurial, risk_management, technical_domain]
+        function:
+          type: string
+        jurisdiction:
+          type: string
+        headcountHolding:
+          type: integer
+        evidenceBasis:
+          type: string
+          enum: [assessed, self_declared, inferred_from_role, certified]
+        derivedFromJobTitleOnly:
+          type: boolean
+          description: Flags entries that are still role-derived rather than genuine skills data
+        asOfDate:
+          type: string
+          format: date
+    SkillInventoryEntryCreate:
+      type: object
+      required: [skillCode, headcountHolding, evidenceBasis]
+      properties:
+        skillCode:
+          type: string
+        skillName:
+          type: string
+        skillFamily:
+          type: string
+        function:
+          type: string
+        jurisdiction:
+          type: string
+        headcountHolding:
+          type: integer
+        evidenceBasis:
+          type: string
+          enum: [assessed, self_declared, inferred_from_role, certified]
+        derivedFromJobTitleOnly:
+          type: boolean
+    SkillDemandProfile:
+      type: object
+      required: [id, worldId]
+      properties:
+        id:
+          type: string
+        worldId:
+          type: string
+        horizonYear:
+          type: integer
+        function:
+          type: string
+        demandedSkills:
+          type: array
+          items:
+            type: object
+            properties:
+              skillCode:
+                type: string
+              skillName:
+                type: string
+              demandedHeadcount:
+                type: integer
+              criticality:
+                type: string
+                enum: [pivotal, core, supporting]
+        sourcingModel:
+          type: string
+          enum: [employed_core, contingent_platform, guild_sourced, acqui_hired, automated]
+        authoredBy:
+          type: string
+    CapabilityGap:
+      type: object
+      properties:
+        function:
+          type: string
+        horizonYear:
+          type: integer
+        perWorldGaps:
+          type: array
+          items:
+            type: object
+            properties:
+              worldId:
+                type: string
+              worldCode:
+                type: string
+              shortfallSkills:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    skillCode:
+                      type: string
+                    heldHeadcount:
+                      type: integer
+                    demandedHeadcount:
+                      type: integer
+                    gap:
+                      type: integer
+              surplusSkills:
+                type: array
+                items:
+                  type: string
+              commonToAllWorlds:
+                type: boolean
+        skillsShortInEveryWorld:
+          type: array
+          items:
+            type: string
+          description: The no-regrets capability build
+        inventoryCoverageShare:
+          type: number
+          format: float
+          description: Share of the workforce represented as skills rather than job titles only
+    Jurisdiction:
+      type: object
+      required: [code, name]
+      properties:
+        code:
+          type: string
+          example: DE
+        name:
+          type: string
+        headcount:
+          type: integer
+        representationBody:
+          type: string
+          enum: [works_council, european_works_council, trade_union, employee_forum, none]
+        automationExposureShare:
+          type: number
+          format: float
+          description: Share of jobs at risk of automation, per the source's country estimates
+        collectiveRedundancyThreshold:
+          type: integer
+        currency:
+          type: string
+    JurisdictionObligation:
+      type: object
+      required: [id, jurisdictionCode, triggerType]
+      properties:
+        id:
+          type: string
+        jurisdictionCode:
+          type: string
+        triggerType:
+          type: string
+          enum: [collective_redundancy, individual_redundancy, transfer_of_undertaking, material_change_to_terms, site_closure]
+        headcountThreshold:
+          type: integer
+        consultationMinimumDays:
+          type: integer
+        noticePeriodDays:
+          type: integer
+        severanceFormula:
+          type: string
+        authorityNotificationRequired:
+          type: boolean
+        redeploymentObligation:
+          type: string
+        socialPlanRequired:
+          type: boolean
+        version:
+          type: integer
+        sourceReference:
+          type: string
+    ConsultationPlan:
+      type: object
+      required: [id, commitmentId, jurisdictionCode, triggerType]
+      properties:
+        id:
+          type: string
+        commitmentId:
+          type: string
+        jurisdictionCode:
+          type: string
+        triggerType:
+          type: string
+        affectedHeadcount:
+          type: integer
+        dutyTriggeredAt:
+          type: string
+          format: date
+        consultationStartBy:
+          type: string
+          format: date
+        earliestLawfulEffectiveDate:
+          type: string
+          format: date
+        totalStatutoryLeadTimeDays:
+          type: integer
+        estimatedSeveranceCost:
+          $ref: "#/components/schemas/Money"
+        estimatedProcessCost:
+          $ref: "#/components/schemas/Money"
+        bodyType:
+          type: string
+          enum: [works_council, european_works_council, trade_union, employee_forum]
+        packReleasedAt:
+          type: string
+          format: date-time
+        packReleasedBy:
+          type: string
+        assumptionsIncludedInPack:
+          type: boolean
+        status:
+          type: string
+          enum: [modelled, pack_issued, consulting, concluded]
+    RedeploymentOption:
+      type: object
+      required: [id, commitmentId, optionType]
+      properties:
+        id:
+          type: string
+        commitmentId:
+          type: string
+        optionType:
+          type: string
+          enum: [internal_vacancy, reskilling_to_adjacent_role, reduced_hours, relocation, contingent_conversion, voluntary_exit]
+        jurisdictionCode:
+          type: string
+        considerationOrder:
+          type: integer
+          description: Evidences the order in which alternatives were considered before external action
+        rolesAvailable:
+          type: integer
+        skillDistanceAssessment:
+          type: string
+        offeredHeadcount:
+          type: integer
+        acceptedHeadcount:
+          type: integer
+        outcome:
+          type: string
+          enum: [pursued, exhausted, rejected_by_employees, not_suitable]
+        rationale:
+          type: string
+    RedeploymentOptionCreate:
+      type: object
+      required: [optionType, considerationOrder, rationale]
+      properties:
+        optionType:
+          type: string
+          enum: [internal_vacancy, reskilling_to_adjacent_role, reduced_hours, relocation, contingent_conversion, voluntary_exit]
+        jurisdictionCode:
+          type: string
+        considerationOrder:
+          type: integer
+        rolesAvailable:
+          type: integer
+        skillDistanceAssessment:
+          type: string
+        rationale:
+          type: string
+    PivotalRole:
+      type: object
+      required: [id, roleTitle, function]
+      properties:
+        id:
+          type: string
+        roleTitle:
+          type: string
+        function:
+          type: string
+        jurisdiction:
+          type: string
+        valueRationale:
+          type: string
+          description: Why this role contributes outsized and crucial value
+        incumbentCount:
+          type: integer
+        vacantCount:
+          type: integer
+        externalSupplyScarcity:
+          type: string
+          enum: [abundant, tight, scarce, effectively_unavailable]
+        designatedBy:
+          type: string
+        confidentialityTier:
+          type: string
+    PivotalRoleCreate:
+      type: object
+      required: [roleTitle, function, valueRationale, designatedBy]
+      properties:
+        roleTitle:
+          type: string
+        function:
+          type: string
+        jurisdiction:
+          type: string
+        valueRationale:
+          type: string
+        incumbentCount:
+          type: integer
+        externalSupplyScarcity:
+          type: string
+          enum: [abundant, tight, scarce, effectively_unavailable]
+        designatedBy:
+          type: string
+    RetentionExposure:
+      type: object
+      required: [pivotalRoleId]
+      properties:
+        pivotalRoleId:
+          type: string
+        perWorldExposure:
+          type: array
+          items:
+            type: object
+            properties:
+              worldId:
+                type: string
+              worldCode:
+                type: string
+              flightRisk:
+                type: string
+                enum: [low, moderate, elevated, severe]
+              burnoutRisk:
+                type: string
+                enum: [low, moderate, elevated, severe]
+              driver:
+                type: string
+        dependentCommitmentIds:
+          type: array
+          items:
+            type: string
+        mitigationNamed:
+          type: boolean
+        mitigationFunded:
+          type: boolean
+        mitigationSummary:
+          type: string
+        reviewDue:
+          type: string
+          format: date
+        retentionClock:
+          type: string
+          description: Short retention window applied to career-affecting inferences
+    SentimentReading:
+      type: object
+      required: [id, period, population, lawfulBasis]
+      properties:
+        id:
+          type: string
+        period:
+          type: string
+        jurisdiction:
+          type: string
+        function:
+          type: string
+        population:
+          type: integer
+        minimumAggregationThreshold:
+          type: integer
+        anxiousAboutAutomationShare:
+          type: number
+          format: float
+        confidentInOwnProspectsShare:
+          type: number
+          format: float
+        willingToRetrainShare:
+          type: number
+          format: float
+        believesSkillUpdateIsOwnResponsibilityShare:
+          type: number
+          format: float
+        trustInEmployerNarrativeShare:
+          type: number
+          format: float
+        lawfulBasis:
+          type: string
+          enum: [legitimate_interest, consent, collective_agreement]
+        sourceInstrument:
+          type: string
+          enum: [pulse_survey, annual_engagement_survey, representative_feedback]
+        publishedAt:
+          type: string
+          format: date-time
+    SentimentReadingCreate:
+      type: object
+      required: [period, population, lawfulBasis, sourceInstrument]
+      properties:
+        period:
+          type: string
+        jurisdiction:
+          type: string
+        function:
+          type: string
+        population:
+          type: integer
+        anxiousAboutAutomationShare:
+          type: number
+          format: float
+        confidentInOwnProspectsShare:
+          type: number
+          format: float
+        willingToRetrainShare:
+          type: number
+          format: float
+        believesSkillUpdateIsOwnResponsibilityShare:
+          type: number
+          format: float
+        trustInEmployerNarrativeShare:
+          type: number
+          format: float
+        lawfulBasis:
+          type: string
+          enum: [legitimate_interest, consent, collective_agreement]
+        sourceInstrument:
+          type: string
+          enum: [pulse_survey, annual_engagement_survey, representative_feedback]
+    NarrativeCommunication:
+      type: object
+      required: [id, title, issuedAt, audience]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        issuedAt:
+          type: string
+          format: date-time
+        audience:
+          type: string
+          enum: [all_employees, function, jurisdiction, representatives, leadership]
+        channel:
+          type: string
+          enum: [town_hall, written_update, manager_briefing, consultation_meeting, intranet]
+        summary:
+          type: string
+        relatedCommitmentIds:
+          type: array
+          items:
+            type: string
+        claimsMade:
+          type: array
+          items:
+            type: string
+        divergenceFlagged:
+          type: boolean
+          description: Set where a claim no longer matches the register it describes
+        issuedBy:
+          type: string
+    NarrativeCommunicationCreate:
+      type: object
+      required: [title, audience, summary, issuedBy]
+      properties:
+        title:
+          type: string
+        audience:
+          type: string
+          enum: [all_employees, function, jurisdiction, representatives, leadership]
+        channel:
+          type: string
+          enum: [town_hall, written_update, manager_briefing, consultation_meeting, intranet]
+        summary:
+          type: string
+        relatedCommitmentIds:
+          type: array
+          items:
+            type: string
+        claimsMade:
+          type: array
+          items:
+            type: string
+        issuedBy:
+          type: string
+    ConfidentialityTier:
+      type: object
+      required: [code, name]
+      properties:
+        code:
+          type: string
+          enum: [open, restricted, site_named, individual_named]
+        name:
+          type: string
+        description:
+          type: string
+        permittedRoles:
+          type: array
+          items:
+            type: string
+        disclosureLoggingRequired:
+          type: boolean
+        marketSensitive:
+          type: boolean
+    DisclosureLogEntry:
+      type: object
+      required: [id, commitmentId, disclosedToPersonId, disclosedAt]
+      properties:
+        id:
+          type: string
+        commitmentId:
+          type: string
+        confidentialityTier:
+          type: string
+        disclosedToPersonId:
+          type: string
+        disclosedToRole:
+          type: string
+        disclosedAt:
+          type: string
+          format: date-time
+        disclosureReason:
+          type: string
+          enum: [scoring_participation, consultation_duty, approval_review, audit, legal_advice, integration_delivery]
+        authorisedBy:
+          type: string
+        acknowledgedConfidentiality:
+          type: boolean
+    DisclosureLogEntryCreate:
+      type: object
+      required: [disclosedToPersonId, disclosureReason, authorisedBy]
+      properties:
+        disclosedToPersonId:
+          type: string
+        disclosedToRole:
+          type: string
+        disclosureReason:
+          type: string
+          enum: [scoring_participation, consultation_duty, approval_review, audit, legal_advice, integration_delivery]
+        authorisedBy:
+          type: string
+        acknowledgedConfidentiality:
+          type: boolean
+    VersionRecord:
+      type: object
+      required: [artefactType, artefactId, version]
+      properties:
+        artefactType:
+          type: string
+          enum: [world_scenario, assumption, payoff_rubric, jurisdiction_obligation]
+        artefactId:
+          type: string
+        version:
+          type: integer
+        authoredBy:
+          type: string
+        changeRationale:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        immutable:
+          type: boolean
+        supersedesVersion:
+          type: integer
+    DataEnvelopeWorldScenario:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/WorldScenario"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeCommitment:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/Commitment"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopePayoffAssessment:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/PayoffAssessment"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeRegretProfile:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/RegretProfile"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeClassification:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/Classification"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeJurisdictionFeasibility:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/JurisdictionFeasibility"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeReskillingTakeupForecast:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/ReskillingTakeupForecast"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopePortfolioSummary:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/PortfolioSummary"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopePlanComparison:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/PlanComparison"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopePortfolioReview:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/PortfolioReview"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeTripwire:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/Tripwire"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeTripwireReading:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/TripwireReading"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeDriftAssessment:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/DriftAssessment"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeSkillInventoryEntry:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/SkillInventoryEntry"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeCapabilityGap:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/CapabilityGap"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeConsultationPlan:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/ConsultationPlan"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeRedeploymentOption:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/RedeploymentOption"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopePivotalRole:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/PivotalRole"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeRetentionExposure:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/RetentionExposure"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeSentimentReading:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/SentimentReading"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeNarrativeCommunication:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/NarrativeCommunication"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeDisclosureLogEntry:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/DisclosureLogEntry"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeWorldScenario:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/WorldScenario"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeMegatrendDriver:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/MegatrendDriver"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeAssumption:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/Assumption"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeCommitment:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/Commitment"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopePayoffAssessment:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/PayoffAssessment"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopePayoffRubric:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/PayoffRubric"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopePortfolioReview:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/PortfolioReview"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeTripwire:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/Tripwire"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeTripwireReading:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/TripwireReading"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeDriftAssessment:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/DriftAssessment"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeSkillInventoryEntry:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/SkillInventoryEntry"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeSkillDemandProfile:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/SkillDemandProfile"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeJurisdiction:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/Jurisdiction"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeJurisdictionObligation:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/JurisdictionObligation"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeRedeploymentOption:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/RedeploymentOption"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopePivotalRole:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/PivotalRole"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeSentimentReading:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/SentimentReading"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeNarrativeCommunication:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/NarrativeCommunication"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeConfidentialityTier:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/ConfidentialityTier"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeDisclosureLogEntry:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/DisclosureLogEntry"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeVersionRecord:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/VersionRecord"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
